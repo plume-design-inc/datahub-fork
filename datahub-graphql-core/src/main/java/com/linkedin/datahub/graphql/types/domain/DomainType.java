@@ -70,12 +70,12 @@ public class DomainType
     try {
       final Map<Urn, EntityResponse> entities =
           _entityClient.batchGetV2(
+              context.getOperationContext(),
               Constants.DOMAIN_ENTITY_NAME,
               new HashSet<>(domainUrns),
-              ASPECTS_TO_FETCH,
-              context.getAuthentication());
+              ASPECTS_TO_FETCH);
 
-      final List<EntityResponse> gmsResults = new ArrayList<>();
+      final List<EntityResponse> gmsResults = new ArrayList<>(urns.size());
       for (Urn urn : domainUrns) {
         gmsResults.add(entities.getOrDefault(urn, null));
       }
@@ -85,7 +85,7 @@ public class DomainType
                   gmsResult == null
                       ? null
                       : DataFetcherResult.<Domain>newResult()
-                          .data(DomainMapper.map(gmsResult))
+                          .data(DomainMapper.map(context, gmsResult))
                           .build())
           .collect(Collectors.toList());
     } catch (Exception e) {
@@ -115,8 +115,8 @@ public class DomainType
       throws Exception {
     final AutoCompleteResult result =
         _entityClient.autoComplete(
-            Constants.DOMAIN_ENTITY_NAME, query, filters, limit, context.getAuthentication());
-    return AutoCompleteResultsMapper.map(result);
+            context.getOperationContext(), Constants.DOMAIN_ENTITY_NAME, query, filters, limit);
+    return AutoCompleteResultsMapper.map(context, result);
   }
 
   private Urn getUrn(final String urnStr) {

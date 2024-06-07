@@ -1,13 +1,14 @@
 package com.linkedin.datahub.upgrade.config;
 
+import com.linkedin.datahub.upgrade.system.BlockingSystemUpgrade;
+import com.linkedin.datahub.upgrade.system.NonBlockingSystemUpgrade;
 import com.linkedin.datahub.upgrade.system.SystemUpdate;
-import com.linkedin.datahub.upgrade.system.elasticsearch.BuildIndices;
-import com.linkedin.datahub.upgrade.system.elasticsearch.CleanIndices;
-import com.linkedin.datahub.upgrade.system.entity.steps.BackfillBrowsePathsV2;
-import com.linkedin.datahub.upgrade.system.via.ReindexDataJobViaNodesCLL;
-import com.linkedin.gms.factory.common.TopicConventionFactory;
+import com.linkedin.datahub.upgrade.system.SystemUpdateBlocking;
+import com.linkedin.datahub.upgrade.system.SystemUpdateNonBlocking;
+import com.linkedin.datahub.upgrade.system.elasticsearch.steps.DataHubStartupStep;
 import com.linkedin.gms.factory.config.ConfigurationProvider;
 import com.linkedin.gms.factory.kafka.DataHubKafkaProducerFactory;
+import com.linkedin.gms.factory.kafka.common.TopicConventionFactory;
 import com.linkedin.gms.factory.kafka.schemaregistry.InternalSchemaRegistryFactory;
 import com.linkedin.gms.factory.kafka.schemaregistry.SchemaRegistryConfig;
 import com.linkedin.metadata.config.kafka.KafkaConfiguration;
@@ -15,6 +16,7 @@ import com.linkedin.metadata.dao.producer.KafkaEventProducer;
 import com.linkedin.metadata.dao.producer.KafkaHealthChecker;
 import com.linkedin.metadata.version.GitVersion;
 import com.linkedin.mxe.TopicConvention;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.generic.IndexedRecord;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -31,25 +33,28 @@ import org.springframework.context.annotation.Primary;
 
 @Slf4j
 @Configuration
+@Conditional(SystemUpdateCondition.class)
 public class SystemUpdateConfig {
+
   @Bean(name = "systemUpdate")
   public SystemUpdate systemUpdate(
-      final BuildIndices buildIndices,
-      final CleanIndices cleanIndices,
-      @Qualifier("duheKafkaEventProducer") final KafkaEventProducer kafkaEventProducer,
-      final GitVersion gitVersion,
-      @Qualifier("revision") String revision,
-      final BackfillBrowsePathsV2 backfillBrowsePathsV2,
-      final ReindexDataJobViaNodesCLL reindexDataJobViaNodesCLL) {
+      final List<BlockingSystemUpgrade> blockingSystemUpgrades,
+      final List<NonBlockingSystemUpgrade> nonBlockingSystemUpgrades,
+      final DataHubStartupStep dataHubStartupStep) {
+    return new SystemUpdate(blockingSystemUpgrades, nonBlockingSystemUpgrades, dataHubStartupStep);
+  }
 
-    String version = String.format("%s-%s", gitVersion.getVersion(), revision);
-    return new SystemUpdate(
-        buildIndices,
-        cleanIndices,
-        kafkaEventProducer,
-        version,
-        backfillBrowsePathsV2,
-        reindexDataJobViaNodesCLL);
+  @Bean(name = "systemUpdateBlocking")
+  public SystemUpdateBlocking systemUpdateBlocking(
+      final List<BlockingSystemUpgrade> blockingSystemUpgrades,
+      final DataHubStartupStep dataHubStartupStep) {
+    return new SystemUpdateBlocking(blockingSystemUpgrades, List.of(), dataHubStartupStep);
+  }
+
+  @Bean(name = "systemUpdateNonBlocking")
+  public SystemUpdateNonBlocking systemUpdateNonBlocking(
+      final List<NonBlockingSystemUpgrade> nonBlockingSystemUpgrades) {
+    return new SystemUpdateNonBlocking(List.of(), nonBlockingSystemUpgrades, null);
   }
 
   @Value("#{systemEnvironment['DATAHUB_REVISION'] ?: '0'}")
@@ -58,6 +63,15 @@ public class SystemUpdateConfig {
   @Bean(name = "revision")
   public String getRevision() {
     return revision;
+  }
+
+  @Bean
+  public DataHubStartupStep dataHubStartupStep(
+      @Qualifier("duheKafkaEventProducer") final KafkaEventProducer kafkaEventProducer,
+      final GitVersion gitVersion,
+      @Qualifier("revision") String revision) {
+    return new DataHubStartupStep(
+        kafkaEventProducer, String.format("%s-%s", gitVersion.getVersion(), revision));
   }
 
   @Autowired
@@ -89,12 +103,21 @@ public class SystemUpdateConfig {
    */
   @Primary
   @Bean(name = "kafkaEventProducer")
-  @Conditional(SystemUpdateCondition.class)
   @ConditionalOnProperty(
       name = "kafka.schemaRegistry.type",
       havingValue = InternalSchemaRegistryFactory.TYPE)
   protected KafkaEventProducer kafkaEventProducer(
       @Qualifier("duheKafkaEventProducer") KafkaEventProducer kafkaEventProducer) {
     return kafkaEventProducer;
+  }
+
+  @Primary
+  @Bean(name = "schemaRegistryConfig")
+  @ConditionalOnProperty(
+      name = "kafka.schemaRegistry.type",
+      havingValue = InternalSchemaRegistryFactory.TYPE)
+  protected SchemaRegistryConfig schemaRegistryConfig(
+      @Qualifier("duheSchemaRegistryConfig") SchemaRegistryConfig duheSchemaRegistryConfig) {
+    return duheSchemaRegistryConfig;
   }
 }

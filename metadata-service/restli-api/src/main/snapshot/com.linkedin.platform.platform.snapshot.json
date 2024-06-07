@@ -834,7 +834,7 @@
     "name" : "FabricType",
     "namespace" : "com.linkedin.common",
     "doc" : "Fabric group type",
-    "symbols" : [ "DEV", "TEST", "QA", "UAT", "EI", "PRE", "STG", "NON_PROD", "PROD", "CORP" ],
+    "symbols" : [ "DEV", "TEST", "QA", "UAT", "EI", "PRE", "STG", "NON_PROD", "PROD", "CORP", "RVW" ],
     "symbolDocs" : {
       "CORP" : "Designates corporation fabrics",
       "DEV" : "Designates development fabrics",
@@ -843,6 +843,7 @@
       "PRE" : "Designates pre-production fabrics",
       "PROD" : "Designates production fabrics",
       "QA" : "Designates quality assurance fabrics",
+      "RVW" : "Designates review fabrics",
       "STG" : "Designates staging fabrics",
       "TEST" : "Designates testing fabrics",
       "UAT" : "Designates user acceptance testing fabrics"
@@ -1258,6 +1259,24 @@
         "items" : "Owner"
       },
       "doc" : "List of owners of the entity."
+    }, {
+      "name" : "ownerTypes",
+      "type" : {
+        "type" : "map",
+        "values" : {
+          "type" : "array",
+          "items" : "Urn"
+        }
+      },
+      "doc" : "Ownership type to Owners map, populated via mutation hook.",
+      "default" : { },
+      "optional" : true,
+      "Searchable" : {
+        "/*" : {
+          "fieldType" : "MAP_ARRAY",
+          "queryByDefault" : false
+        }
+      }
     }, {
       "name" : "lastModified",
       "type" : "AuditStamp",
@@ -2339,6 +2358,11 @@
       "type" : "string",
       "doc" : "The view logic"
     }, {
+      "name" : "formattedViewLogic",
+      "type" : "string",
+      "doc" : "The formatted view logic. This is particularly used for SQL sources, where the SQL\nlogic is formatted for better readability, and with dbt, where this contains the\ncompiled SQL logic.",
+      "optional" : true
+    }, {
       "name" : "viewLanguage",
       "type" : "string",
       "doc" : "The view logic language / dialect"
@@ -2771,7 +2795,13 @@
                   }, {
                     "name" : "lastModified",
                     "type" : "com.linkedin.common.AuditStamp",
-                    "doc" : "Audit stamp containing who last modified the status and when."
+                    "doc" : "Audit stamp containing who last modified the status and when.",
+                    "Searchable" : {
+                      "/time" : {
+                        "fieldName" : "statusLastModifiedAt",
+                        "fieldType" : "COUNT"
+                      }
+                    }
                   } ],
                   "Aspect" : {
                     "name" : "corpUserStatus"
@@ -3219,8 +3249,9 @@
                         }, {
                           "name" : "label",
                           "type" : "string",
-                          "doc" : "Label of the field. Provides a more human-readable name for the field than field path. Some sources will\nprovide this metadata but not all sources have the concept of a label. If just one string is associated with\na field in a source, that is most likely a description.",
+                          "doc" : "Label of the field. Provides a more human-readable name for the field than field path. Some sources will\nprovide this metadata but not all sources have the concept of a label. If just one string is associated with\na field in a source, that is most likely a description.\n\nNote that this field is deprecated and is not surfaced in the UI.",
                           "optional" : true,
+                          "Deprecated" : true,
                           "Searchable" : {
                             "boostScore" : 0.2,
                             "fieldName" : "fieldLabels",
@@ -5200,11 +5231,17 @@
                   }, {
                     "name" : "type",
                     "type" : "string",
-                    "doc" : "The type of policy"
+                    "doc" : "The type of policy",
+                    "Searchable" : {
+                      "fieldType" : "KEYWORD"
+                    }
                   }, {
                     "name" : "state",
                     "type" : "string",
-                    "doc" : "The state of policy, ACTIVE or INACTIVE"
+                    "doc" : "The state of policy, ACTIVE or INACTIVE",
+                    "Searchable" : {
+                      "fieldType" : "KEYWORD"
+                    }
                   }, {
                     "name" : "resources",
                     "type" : {
@@ -5288,7 +5325,13 @@
                       "type" : "array",
                       "items" : "string"
                     },
-                    "doc" : "The privileges that the policy grants."
+                    "doc" : "The privileges that the policy grants.",
+                    "Searchable" : {
+                      "/*" : {
+                        "addToFilters" : true,
+                        "fieldType" : "KEYWORD"
+                      }
+                    }
                   }, {
                     "name" : "actors",
                     "type" : {
@@ -5302,7 +5345,12 @@
                           "items" : "com.linkedin.common.Urn"
                         },
                         "doc" : "A specific set of users to apply the policy to (disjunctive)",
-                        "optional" : true
+                        "optional" : true,
+                        "Searchable" : {
+                          "/*" : {
+                            "fieldType" : "URN"
+                          }
+                        }
                       }, {
                         "name" : "groups",
                         "type" : {
@@ -5310,7 +5358,12 @@
                           "items" : "com.linkedin.common.Urn"
                         },
                         "doc" : "A specific set of groups to apply the policy to (disjunctive)",
-                        "optional" : true
+                        "optional" : true,
+                        "Searchable" : {
+                          "/*" : {
+                            "fieldType" : "URN"
+                          }
+                        }
                       }, {
                         "name" : "resourceOwners",
                         "type" : "boolean",
@@ -5328,12 +5381,18 @@
                         "name" : "allUsers",
                         "type" : "boolean",
                         "doc" : "Whether the filter should apply to all users.",
-                        "default" : false
+                        "default" : false,
+                        "Searchable" : {
+                          "fieldType" : "BOOLEAN"
+                        }
                       }, {
                         "name" : "allGroups",
                         "type" : "boolean",
                         "doc" : "Whether the filter should apply to all groups.",
-                        "default" : false
+                        "default" : false,
+                        "Searchable" : {
+                          "fieldType" : "BOOLEAN"
+                        }
                       }, {
                         "name" : "roles",
                         "type" : {
@@ -5347,6 +5406,11 @@
                             "entityTypes" : [ "dataHubRole" ],
                             "name" : "IsAssociatedWithRole"
                           }
+                        },
+                        "Searchable" : {
+                          "/*" : {
+                            "fieldType" : "URN"
+                          }
                         }
                       } ]
                     },
@@ -5355,7 +5419,10 @@
                     "name" : "editable",
                     "type" : "boolean",
                     "doc" : "Whether the policy should be editable via the UI",
-                    "default" : true
+                    "default" : true,
+                    "Searchable" : {
+                      "fieldType" : "BOOLEAN"
+                    }
                   }, {
                     "name" : "lastUpdatedTimestamp",
                     "type" : "long",

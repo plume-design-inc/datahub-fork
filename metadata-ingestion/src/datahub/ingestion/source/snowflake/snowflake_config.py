@@ -164,6 +164,12 @@ class SnowflakeV2Config(
         "username.",
     )
 
+    include_assertion_results: bool = Field(
+        default=False,
+        description="Whether to ingest assertion run results for assertions created using Datahub"
+        " assertions CLI in snowflake",
+    )
+
     @validator("convert_urns_to_lowercase")
     def validate_convert_urns_to_lowercase(cls, v):
         if not v:
@@ -220,7 +226,7 @@ class SnowflakeV2Config(
             and values["stateful_ingestion"].remove_stale_metadata
         )
 
-        # TODO: Allow lineage extraction and profiling irrespective of basic schema extraction,
+        # TODO: Allow profiling irrespective of basic schema extraction,
         # as it seems possible with some refactor
         if not include_technical_schema and any(
             [include_profiles, delete_detection_enabled]

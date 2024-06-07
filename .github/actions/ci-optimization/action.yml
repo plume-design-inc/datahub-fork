@@ -17,6 +17,9 @@ outputs:
   ingestion-change:
     description: "Ingestion code has changed"
     value: ${{ steps.filter.outputs.ingestion == 'true' }}
+  ingestion-base-change:
+    description: "Ingestion base image docker image has changed"
+    value: ${{ steps.filter.outputs.ingestion-base == 'true' }}
   frontend-change:
     description: "Frontend code has changed"
     value: ${{ steps.filter.outputs.frontend == 'true' }}
@@ -35,6 +38,9 @@ outputs:
   elasticsearch-setup-change:
     description: "Elasticsearch setup docker change"
     value: ${{ steps.filter.outputs.elasticsearch-setup == 'true' }}
+  smoke-test-change:
+    description: "Smoke test change"
+    value: ${{ steps.filter.outputs.smoke-test == 'true' }}
 runs:
   using: "composite"
   steps:
@@ -52,10 +58,13 @@ runs:
             - "metadata-ingestion/**"
             - "metadata-models/**"
             - "smoke-test/**"
-            - "docker/datahub-ingestion-**"
+            - "docker/datahub-ingestion**"
+          ingestion-base:
+            - "docker/datahub-ingestion-base/**"
           docker:
             - "docker/**"
           backend:
+            - ".github/**"
             - "metadata-models/**"
             - "datahub-upgrade/**"
             - "entity-registry/**"
@@ -67,6 +76,8 @@ runs:
             - "metadata-jobs/**"
             - "metadata-service/**"
             - "metadata-utils/**"
+            - "metadata-operation-context/**"
+            - "datahub-graphql-core/**"
             - "smoke-test/**"
             - "docker/**"
           kafka-setup:
@@ -77,3 +88,5 @@ runs:
             - "docker/postgres-setup/**"
           elasticsearch-setup:
             - "docker/elasticsearch-setup/**"
+          smoke-test:
+            - "smoke-test/**"
